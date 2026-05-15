@@ -44,14 +44,14 @@ public sealed record Row(IReadOnlyDictionary<string, object?> Fields)
     /// <param name="value">The field value.</param>
     /// <returns>A new row.</returns>
     public Row With(string key, object? value) =>
-        new(((ImmutableDictionary<string, object?>)this.Fields).SetItem(key, value));
+        new(this.ToImmutable().SetItem(key, value));
 
     /// <summary>Returns a new <see cref="Row"/> with all entries from <paramref name="fields"/> merged in.</summary>
     /// <param name="fields">Fields to add or overwrite.</param>
     /// <returns>A new row.</returns>
     public Row With(IReadOnlyDictionary<string, object?> fields)
     {
-        var builder = (ImmutableDictionary<string, object?>)this.Fields;
+        var builder = this.ToImmutable();
         foreach (var kvp in fields)
         {
             builder = builder.SetItem(kvp.Key, kvp.Value);
@@ -59,4 +59,8 @@ public sealed record Row(IReadOnlyDictionary<string, object?> Fields)
 
         return new Row(builder);
     }
+
+    // Returns Fields as ImmutableDictionary, or creates one if Fields is a plain dictionary.
+    private ImmutableDictionary<string, object?> ToImmutable() =>
+        this.Fields as ImmutableDictionary<string, object?> ?? ImmutableDictionary.CreateRange(this.Fields);
 }

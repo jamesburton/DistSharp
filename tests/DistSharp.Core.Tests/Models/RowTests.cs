@@ -80,4 +80,15 @@ public sealed class RowTests
         found.Should().BeFalse();
         value.Should().BeNull();
     }
+
+    [Fact]
+    public void With_WorksOnRowConstructedWithPlainDictionary()
+    {
+        var row = new Row(new Dictionary<string, object?> { ["a"] = 1 });
+
+        var result = row.With("b", 2);
+
+        result.Get<int>("a").Should().Be(1);
+        result.Get<int>("b").Should().Be(2);
+    }
 }
