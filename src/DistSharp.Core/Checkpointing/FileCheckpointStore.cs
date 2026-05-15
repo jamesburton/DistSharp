@@ -35,9 +35,14 @@ public sealed class FileCheckpointStore : ICheckpointStore
     {
         Directory.CreateDirectory(this.baseDir);
         var path = this.FilePath(checkpoint.PipelineId);
+        var tempPath = path + ".tmp";
 
-        await using var stream = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None);
-        await JsonSerializer.SerializeAsync(stream, checkpoint, JsonOptions, cancellationToken);
+        await using (var stream = File.Open(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await JsonSerializer.SerializeAsync(stream, checkpoint, FileCheckpointStore.JsonOptions, cancellationToken);
+        }
+
+        File.Move(tempPath, path, overwrite: true);
     }
 
     private string FilePath(string pipelineId) =>

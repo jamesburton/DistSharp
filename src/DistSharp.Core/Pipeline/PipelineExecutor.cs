@@ -75,6 +75,7 @@ public sealed class PipelineExecutor : IPipelineExecutor
             .ToArray();
 
         await Task.WhenAll(stepTasks.Concat(distributorTasks));
+        await writer.FlushAsync(cancellationToken);
     }
 
     // Reads every row from source and forwards a copy to each consumer's input channel.

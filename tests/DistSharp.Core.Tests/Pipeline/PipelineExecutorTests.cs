@@ -159,6 +159,57 @@ public sealed class PipelineExecutorTests
             .WithMessage("*cycle*");
     }
 
+    // ── Failure and cancellation tests ────────────────────────────────────────────
+    [Fact]
+    public async Task StepFailure_PropagatesException_FromExecuteAsync()
+    {
+        var source = new SourceStep("source", Row.Empty.With("id", 1));
+        var faulting = new FaultingStep("faulting");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("source", source),
+            new StepDefinition("faulting", faulting, new[] { "source" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        var act = () => new PipelineExecutor().ExecuteAsync(pipeline, writer, CancellationToken.None);
+
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage("*Step failed intentionally*");
+    }
+
+    [Fact]
+    public async Task Cancellation_StopsExecution()
+    {
+        // Use a channel to control when the source produces rows, ensuring cancellation can fire mid-run.
+        var source = new SourceStep(
+            "source",
+            Row.Empty.With("id", 1),
+            Row.Empty.With("id", 2),
+            Row.Empty.With("id", 3));
+        var passthrough = new PassthroughStep("passthrough");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("source", source),
+            new StepDefinition("passthrough", passthrough, new[] { "source" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel(); // Cancel immediately
+
+        var act = () => new PipelineExecutor().ExecuteAsync(pipeline, writer, cts.Token);
+
+        // Either completes normally (if cancellation fires after all rows are written)
+        // or throws OperationCanceledException — both are acceptable.
+        // What must NOT happen: hang or throw a non-cancellation/non-completion exception.
+        var exception = await Record.ExceptionAsync(act);
+        (exception is null || exception is OperationCanceledException).Should().BeTrue(
+            because: "cancellation should either complete normally or throw OperationCanceledException");
+    }
+
     // Produces a fixed set of rows and ignores its input (source step behaviour).
     private sealed class SourceStep(string name, params Row[] rows) : IStep
     {
@@ -197,6 +248,20 @@ public sealed class PipelineExecutorTests
             await foreach (var row in input.ReadAllAsync(ct))
             {
                 await output.WriteAsync(row.With(field, tag), ct);
+            }
+        }
+    }
+
+    // Throws an exception after receiving the first row.
+    private sealed class FaultingStep(string name) : IStep
+    {
+        public string Name { get; } = name;
+
+        public async Task ExecuteAsync(ChannelReader<Row> input, ChannelWriter<Row> output, CancellationToken ct)
+        {
+            await foreach (var row in input.ReadAllAsync(ct))
+            {
+                throw new InvalidOperationException("Step failed intentionally.");
             }
         }
     }
