@@ -4,8 +4,8 @@ using DistSharp.Core.Models;
 namespace DistSharp.Core.Pipeline;
 
 /// <summary>
-/// A single unit of work in a pipeline. Reads rows from <paramref name="input"/>, transforms or
-/// filters them, and writes results to <paramref name="output"/>. Channel wiring is handled by
+/// A single unit of work in a pipeline. Reads rows from an input channel, transforms or
+/// filters them, and writes results to an output channel. Channel wiring is handled by
 /// <see cref="IPipelineExecutor"/> — steps never create channels.
 /// </summary>
 public interface IStep
