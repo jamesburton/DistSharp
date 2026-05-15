@@ -60,6 +60,105 @@ public sealed class PipelineExecutorTests
         writer.Rows.Should().BeEmpty();
     }
 
+    // ── Fan-out tests ─────────────────────────────────────────────────────────────
+    [Fact]
+    public async Task FanOut_OneSourceTwoConsumers_BothReceiveAllRows()
+    {
+        var source = new SourceStep(
+            "source",
+            Row.Empty.With("id", 1),
+            Row.Empty.With("id", 2));
+        var branchA = new TagStep("branchA", "branch", "a");
+        var branchB = new TagStep("branchB", "branch", "b");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("source", source),
+            new StepDefinition("branchA", branchA, new[] { "source" }),
+            new StepDefinition("branchB", branchB, new[] { "source" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        await new PipelineExecutor().ExecuteAsync(pipeline, writer, CancellationToken.None);
+
+        // Both branches receive 2 rows each = 4 rows total
+        writer.Rows.Should().HaveCount(4);
+        writer.Rows.Where(r => r.Get<string>("branch") == "a").Should().HaveCount(2);
+        writer.Rows.Where(r => r.Get<string>("branch") == "b").Should().HaveCount(2);
+    }
+
+    // ── Fan-in tests ──────────────────────────────────────────────────────────────
+    [Fact]
+    public async Task FanIn_TwoUpstreamsMerge_DownstreamReceivesAllRows()
+    {
+        var sourceA = new SourceStep("sourceA", Row.Empty.With("src", "a"));
+        var sourceB = new SourceStep("sourceB", Row.Empty.With("src", "b"));
+        var merge = new PassthroughStep("merge");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("sourceA", sourceA),
+            new StepDefinition("sourceB", sourceB),
+            new StepDefinition("merge", merge, new[] { "sourceA", "sourceB" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        await new PipelineExecutor().ExecuteAsync(pipeline, writer, CancellationToken.None);
+
+        writer.Rows.Should().HaveCount(2);
+        writer.Rows.Select(r => r.Get<string>("src")).Should().BeEquivalentTo(new[] { "a", "b" });
+    }
+
+    [Fact]
+    public async Task FanOutThenFanIn_DiamondTopology_AllRowsReachSink()
+    {
+        // source → branchA ─┐
+        //                    ├→ merge → sink
+        // source → branchB ─┘
+        var source = new SourceStep(
+            "source",
+            Row.Empty.With("id", 1),
+            Row.Empty.With("id", 2));
+        var branchA = new TagStep("branchA", "branch", "a");
+        var branchB = new TagStep("branchB", "branch", "b");
+        var merge = new PassthroughStep("merge");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("source", source),
+            new StepDefinition("branchA", branchA, new[] { "source" }),
+            new StepDefinition("branchB", branchB, new[] { "source" }),
+            new StepDefinition("merge", merge, new[] { "branchA", "branchB" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        await new PipelineExecutor().ExecuteAsync(pipeline, writer, CancellationToken.None);
+
+        // 2 source rows × 2 branches = 4 merged rows
+        writer.Rows.Should().HaveCount(4);
+        writer.Rows.Select(r => r.Get<int>("id")).Should().BeEquivalentTo(new[] { 1, 2, 1, 2 });
+    }
+
+    // ── Cycle detection ───────────────────────────────────────────────────────────
+    [Fact]
+    public async Task Cycle_ThrowsInvalidOperationException()
+    {
+        var stepA = new PassthroughStep("a");
+        var stepB = new PassthroughStep("b");
+        var steps = new StepDefinition[]
+        {
+            new StepDefinition("a", stepA, new[] { "b" }),
+            new StepDefinition("b", stepB, new[] { "a" }),
+        };
+        var pipeline = new PipelineDefinition("test", steps);
+        var writer = new CollectingWriter();
+
+        var act = () => new PipelineExecutor().ExecuteAsync(pipeline, writer, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*cycle*");
+    }
+
     // Produces a fixed set of rows and ignores its input (source step behaviour).
     private sealed class SourceStep(string name, params Row[] rows) : IStep
     {
