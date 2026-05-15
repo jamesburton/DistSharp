@@ -1,3 +1,4 @@
+using DistSharp.Cli.Commands;
 using DistSharp.Cli.Configuration;
 using DistSharp.Core;
 using DistSharp.Core.Configuration;
@@ -34,6 +35,12 @@ public static class HostBuilder
 
         builder.Services.AddSingleton<PipelineBuilder>();
         builder.Services.AddSingleton<DistSharp.Cli.Progress.LiveProgressDisplay>();
+
+        builder.Services.AddTransient<GenerateCommandHandler>();
+        builder.Services.AddTransient<InspectCommandHandler>();
+        builder.Services.AddTransient<InitCommandHandler>();
+        builder.Services.AddTransient<PipelineRunCommandHandler>();
+        builder.Services.AddTransient<ExportCommandHandler>();
 
         return builder.Build();
     }
