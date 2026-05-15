@@ -18,6 +18,12 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" />
   </ItemGroup>
 
+  <!-- Suppress audit warning for Snappier 1.1.6 (GHSA-pggp-6c3x-2xmx), a transitive dependency
+       pulled by IronCompress via Parquet.Net. -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-pggp-6c3x-2xmx" />
+  </ItemGroup>
+
   <PropertyGroup Condition="!$(MSBuildProjectName.EndsWith('.Tests'))">
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
