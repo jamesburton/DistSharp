@@ -2,4 +2,31 @@
   <ItemGroup>
     <ProjectReference Include="..\DistSharp.Core\DistSharp.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" />
+    <PackageReference Include="Microsoft.Build.Locator" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <!-- Prevent MSBuild assemblies from being copied to the output directory; Microsoft.Build.Locator loads them at runtime -->
+    <PackageReference Include="Microsoft.Build" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Framework" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.StringTools" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Suppress audit advisories for MSBuild packages that are excluded from the runtime output
+      (ExcludeAssets="runtime"); Microsoft.Build.Locator loads MSBuild at runtime from the SDK
+      installation, so these vulnerabilities are not exercised in this project.
+    -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-h4j7-5rxr-p4wc" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-w3q9-fxm7-j8fq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DistSharp.Roslyn.Tests" />
+  </ItemGroup>
 </Project>

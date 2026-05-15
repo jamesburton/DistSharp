@@ -10,6 +10,22 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Roslyn">
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.12.0" />
+    <PackageVersion Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <!--
+      Microsoft.Build.Locator loads MSBuild assemblies at runtime via reflection; the transitive
+      Microsoft.Build.* packages are referenced directly in DistSharp.Roslyn with ExcludeAssets="runtime"
+      so they are not copied to the output directory and do not conflict with the runtime-loaded MSBuild.
+    -->
+    <PackageVersion Include="Microsoft.Build" Version="17.7.2" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="17.7.2" />
+    <PackageVersion Include="Microsoft.Build.Tasks.Core" Version="17.7.2" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="17.7.2" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="17.7.2" />
+  </ItemGroup>
+
   <ItemGroup Label="Analyzers">
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.507" />
   </ItemGroup>
