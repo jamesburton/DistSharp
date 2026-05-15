@@ -8,7 +8,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Suppress file-header rules globally: xmlHeader=false means we don't enforce file headers -->
-    <NoWarn>$(NoWarn);SA1600;SA1601;SA1602;SA1633;SA1636;SA1641</NoWarn>
+    <NoWarn>$(NoWarn);SA1633;SA1636;SA1641</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,5 +21,6 @@
 
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
     <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);SA1600;SA1601;SA1602</NoWarn>
   </PropertyGroup>
 </Project>
