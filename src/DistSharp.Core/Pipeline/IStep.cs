@@ -17,6 +17,7 @@ public interface IStep
     /// <param name="input">The channel to read rows from. Completes when the upstream step is finished.</param>
     /// <param name="output">The channel to write result rows to.</param>
     /// <param name="cancellationToken">Token to cancel the step.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous step execution.</returns>
     Task ExecuteAsync(
         ChannelReader<Row> input,
         ChannelWriter<Row> output,

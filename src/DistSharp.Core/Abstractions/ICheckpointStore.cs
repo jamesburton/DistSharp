@@ -14,5 +14,6 @@ public interface ICheckpointStore
     /// <summary>Saves <paramref name="checkpoint"/>, overwriting any previous checkpoint for the same pipeline.</summary>
     /// <param name="checkpoint">The checkpoint to persist.</param>
     /// <param name="cancellationToken">Token to cancel the save.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous save operation.</returns>
     Task SaveAsync(PipelineCheckpoint checkpoint, CancellationToken cancellationToken);
 }

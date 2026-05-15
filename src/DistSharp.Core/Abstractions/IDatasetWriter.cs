@@ -8,9 +8,11 @@ public interface IDatasetWriter : IAsyncDisposable
     /// <summary>Writes a single <paramref name="row"/> to the output.</summary>
     /// <param name="row">The row to write.</param>
     /// <param name="cancellationToken">Token to cancel the write.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous write operation.</returns>
     Task WriteAsync(Row row, CancellationToken cancellationToken);
 
     /// <summary>Flushes any buffered rows to the underlying storage.</summary>
     /// <param name="cancellationToken">Token to cancel the flush.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous flush operation.</returns>
     Task FlushAsync(CancellationToken cancellationToken);
 }
