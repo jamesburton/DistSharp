@@ -5,6 +5,11 @@ trigger:
       - feature/*
       - bugfix/*
 
+pr:
+  branches:
+    include:
+      - main
+
 pool:
   vmImage: ubuntu-latest
 
@@ -38,3 +43,9 @@ steps:
     inputs:
       testResultsFormat: VSTest
       testResultsFiles: $(Agent.TempDirectory)/TestResults/**/*.trx
+
+  - task: PublishCodeCoverageResults@2
+    displayName: Publish code coverage
+    condition: succeededOrFailed()
+    inputs:
+      summaryFileLocation: $(Agent.TempDirectory)/TestResults/**/coverage.cobertura.xml
