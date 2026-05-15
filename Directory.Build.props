@@ -24,6 +24,6 @@
 
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);SA1600;SA1601;SA1602</NoWarn>
+    <NoWarn>$(NoWarn);SA0001;SA1600;SA1601;SA1602</NoWarn>
   </PropertyGroup>
 </Project>
