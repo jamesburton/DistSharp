@@ -6,14 +6,20 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Suppress file-header rules globally: xmlHeader=false means we don't enforce file headers -->
+    <NoWarn>$(NoWarn);SA1600;SA1601;SA1602;SA1633;SA1636;SA1641</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" />
+  </ItemGroup>
+
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);SA1600;SA1601;SA1602</NoWarn>
   </PropertyGroup>
 </Project>

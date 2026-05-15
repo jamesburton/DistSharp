@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - main
+      - feature/*
+      - bugfix/*
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  DOTNET_VERSION: 10.0.x
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+steps:
+  - task: UseDotNet@2
+    displayName: Install .NET SDK
+    inputs:
+      version: $(DOTNET_VERSION)
+
+  - script: dotnet restore
+    displayName: Restore NuGet packages
+
+  - script: dotnet build --no-restore --configuration Release
+    displayName: Build
+
+  - script: >
+      dotnet test --no-build --configuration Release
+      --logger trx
+      --collect "XPlat Code Coverage"
+      --results-directory $(Agent.TempDirectory)/TestResults
+    displayName: Test
+
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: $(Agent.TempDirectory)/TestResults/**/*.trx
