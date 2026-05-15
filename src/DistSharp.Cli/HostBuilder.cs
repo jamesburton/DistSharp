@@ -32,6 +32,9 @@ public static class HostBuilder
 
         builder.Services.AddSingleton(AnsiConsole.Console);
 
+        builder.Services.AddSingleton<PipelineBuilder>();
+        builder.Services.AddSingleton<DistSharp.Cli.Progress.LiveProgressDisplay>();
+
         return builder.Build();
     }
 }
