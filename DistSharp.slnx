@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DistSharp.Cli/DistSharp.Cli.csproj" />
+    <Project Path="src/DistSharp.Core/DistSharp.Core.csproj" />
+    <Project Path="src/DistSharp.Providers/DistSharp.Providers.csproj" />
+    <Project Path="src/DistSharp.Roslyn/DistSharp.Roslyn.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DistSharp.Cli.Tests/DistSharp.Cli.Tests.csproj" />
+    <Project Path="tests/DistSharp.Core.Tests/DistSharp.Core.Tests.csproj" />
+    <Project Path="tests/DistSharp.Providers.Tests/DistSharp.Providers.Tests.csproj" />
+    <Project Path="tests/DistSharp.Roslyn.Tests/DistSharp.Roslyn.Tests.csproj" />
+  </Folder>
+</Solution>

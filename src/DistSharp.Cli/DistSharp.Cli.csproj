@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>distsharp</ToolCommandName>
+    <PackageId>DistSharp</PackageId>
+    <!-- SA0001/SA1633 suppressed until stylecop.json is added in Task 2 -->
+    <NoWarn>$(NoWarn);SA0001;SA1633</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DistSharp.Core\DistSharp.Core.csproj" />
+    <ProjectReference Include="..\DistSharp.Roslyn\DistSharp.Roslyn.csproj" />
+    <ProjectReference Include="..\DistSharp.Providers\DistSharp.Providers.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>
