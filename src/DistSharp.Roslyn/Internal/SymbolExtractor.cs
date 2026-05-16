@@ -8,6 +8,13 @@ namespace DistSharp.Roslyn.Internal;
 /// <summary>Walks a single syntax tree and yields <see cref="ExtractedSymbol"/> records for each eligible declaration.</summary>
 internal sealed class SymbolExtractor
 {
+    private static readonly SymbolDisplayFormat FullNameFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers | SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
     private readonly SemanticModel semanticModel;
     private readonly string relativeFilePath;
     private readonly Func<INamespaceSymbol?, bool> namespaceIncluded;
@@ -125,7 +132,7 @@ internal sealed class SymbolExtractor
 
         return new ExtractedSymbol
         {
-            FullyQualifiedName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            FullyQualifiedName = symbol.ToDisplayString(FullNameFormat),
             SignatureText = node.WithBody(null).WithExpressionBody(null).ToString().TrimEnd(';', ' ', '\r', '\n'),
             BodyText = body?.ToFullString().Trim() ?? string.Empty,
             XmlDocComment = ExtractDocComment(symbol),
@@ -141,7 +148,7 @@ internal sealed class SymbolExtractor
     {
         return new ExtractedSymbol
         {
-            FullyQualifiedName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            FullyQualifiedName = symbol.ToDisplayString(FullNameFormat),
             SignatureText = $"{node.Modifiers} {node.Type} {node.Identifier}".Trim(),
             BodyText = node.ToFullString().Trim(),
             XmlDocComment = ExtractDocComment(symbol),
@@ -160,7 +167,7 @@ internal sealed class SymbolExtractor
 
         return new ExtractedSymbol
         {
-            FullyQualifiedName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            FullyQualifiedName = symbol.ToDisplayString(FullNameFormat),
             SignatureText = node.WithBody(null).WithExpressionBody(null).ToString().TrimEnd(';', ' ', '\r', '\n'),
             BodyText = body?.ToFullString().Trim() ?? string.Empty,
             XmlDocComment = ExtractDocComment(symbol),
@@ -176,7 +183,7 @@ internal sealed class SymbolExtractor
     {
         return new ExtractedSymbol
         {
-            FullyQualifiedName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            FullyQualifiedName = symbol.ToDisplayString(FullNameFormat),
             SignatureText = ExtractTypeSignature(node),
             BodyText = node.ToFullString().Trim(),
             XmlDocComment = ExtractDocComment(symbol),

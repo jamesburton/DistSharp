@@ -92,6 +92,12 @@ public sealed class InspectCommandHandler
                     symbols,
                 },
                 new JsonSerializerOptions { WriteIndented = true });
+            var reportDir = Path.GetDirectoryName(options.Report);
+            if (!string.IsNullOrEmpty(reportDir))
+            {
+                Directory.CreateDirectory(reportDir);
+            }
+
             await File.WriteAllTextAsync(options.Report, json, cancellationToken).ConfigureAwait(false);
             this.console.MarkupLine($"[green]Report written to {options.Report}[/]");
         }

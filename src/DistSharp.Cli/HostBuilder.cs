@@ -7,6 +7,7 @@ using DistSharp.Roslyn;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
 namespace DistSharp.Cli;
@@ -20,6 +21,15 @@ public static class HostBuilder
     public static IHost Build(string[] args)
     {
         var builder = Host.CreateApplicationBuilder(args);
+
+        // Remove the default EventLog logger on Windows — it requires permissions we may not have
+        // and has lifetime issues when called from event handlers during workspace teardown.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddSimpleConsole(o =>
+        {
+            o.SingleLine = true;
+            o.TimestampFormat = "HH:mm:ss ";
+        });
 
         builder.Configuration
             .AddYamlFile("distsharp.yaml", optional: true)
