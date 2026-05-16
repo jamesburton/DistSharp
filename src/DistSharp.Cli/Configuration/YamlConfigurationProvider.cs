@@ -53,6 +53,12 @@ internal sealed class YamlConfigurationProvider : ConfigurationProvider
         {
             case YamlScalarNode scalar:
                 data[prefix] = scalar.Value;
+                var pascalPath = ToPascalCasePath(prefix);
+                if (!string.Equals(pascalPath, prefix, StringComparison.Ordinal))
+                {
+                    data[pascalPath] = scalar.Value;
+                }
+
                 break;
 
             case YamlMappingNode mapping:
@@ -74,5 +80,48 @@ internal sealed class YamlConfigurationProvider : ConfigurationProvider
 
                 break;
         }
+    }
+
+    // Converts a snake_case-segment path (e.g. "steps:0:depends_on:0") to PascalCase per segment
+    // ("steps:0:DependsOn:0") so that Configuration.Bind can map YAML snake_case keys to C# PascalCase properties.
+    // Each segment is treated independently; integer segments and segments without underscores are preserved.
+    private static string ToPascalCasePath(string path)
+    {
+        if (!path.Contains('_'))
+        {
+            return path;
+        }
+
+        var segments = path.Split(':');
+        for (var i = 0; i < segments.Length; i++)
+        {
+            if (segments[i].Contains('_'))
+            {
+                segments[i] = SnakeToPascal(segments[i]);
+            }
+        }
+
+        return string.Join(':', segments);
+    }
+
+    private static string SnakeToPascal(string segment)
+    {
+        var parts = segment.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return segment;
+        }
+
+        var builder = new System.Text.StringBuilder(segment.Length);
+        foreach (var part in parts)
+        {
+            builder.Append(char.ToUpperInvariant(part[0]));
+            if (part.Length > 1)
+            {
+                builder.Append(part.AsSpan(1));
+            }
+        }
+
+        return builder.ToString();
     }
 }
