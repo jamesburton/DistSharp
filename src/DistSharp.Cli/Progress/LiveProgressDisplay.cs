@@ -25,6 +25,15 @@ public sealed class LiveProgressDisplay
     /// <returns>A <see cref="Task"/> that completes when the work and final render are done.</returns>
     public async Task RunAsync(IReadOnlyList<StepMetrics> metrics, Func<CancellationToken, Task> work, CancellationToken cancellationToken)
     {
+        // LiveDisplay requires an interactive terminal; fall back to plain output in non-TTY contexts
+        // (e.g. CI, piped output, or background processes) to avoid cursor-manipulation exceptions.
+        if (!this.console.Profile.Capabilities.Interactive)
+        {
+            await work(cancellationToken).ConfigureAwait(false);
+            this.console.Write(BuildTable(metrics));
+            return;
+        }
+
         var table = BuildTable(metrics);
 
         await this.console.Live(table).StartAsync(async ctx =>

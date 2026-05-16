@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# DistSharp smoke-test scratch directory
+.smoke-test/
