@@ -11,11 +11,11 @@ public static class Program
     /// <summary>The main entry point.</summary>
     /// <param name="args">Command-line arguments.</param>
     /// <returns>Process exit code.</returns>
-    public static Task<int> Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         using var host = HostBuilder.Build(args);
         var root = BuildRootCommand(host.Services);
-        return root.InvokeAsync(args);
+        return await root.InvokeAsync(args).ConfigureAwait(false);
     }
 
     private static RootCommand BuildRootCommand(IServiceProvider services)
