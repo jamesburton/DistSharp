@@ -1,0 +1,36 @@
+name: comparison-distsharp-generate
+version: "1"
+
+solution:
+  path: c:\Development\ai-roi\AiRoi.sln
+  min_complexity: 3
+
+steps:
+  - name: extract_symbols
+    type: RoslynSymbolExtractor
+    config:
+      symbol_kinds: [method]
+      min_complexity: 3
+
+  - name: sample
+    type: StratifiedSampler
+    depends_on: [extract_symbols]
+    config:
+      max_rows: 10
+      strategy: complexity_weighted
+      seed: 42
+
+  - name: generate
+    type: LlmStep
+    depends_on: [sample]
+    config:
+      provider: openai
+      model: gpt-4.1-mini
+      dataset_type: explanation
+      workers: 4
+      temperature: 0.7
+
+output:
+  dir: c:\Development\DistSharp\.comparison\distsharp-out
+  format: jsonl
+  write_metadata: true

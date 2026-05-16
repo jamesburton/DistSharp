@@ -1,0 +1,27 @@
+name: comparison-extract
+version: "1"
+
+solution:
+  path: c:\Development\ai-roi\AiRoi.sln
+  include_tests: false
+  min_complexity: 3
+
+steps:
+  - name: extract_symbols
+    type: RoslynSymbolExtractor
+    config:
+      symbol_kinds: [method]
+      min_complexity: 3
+
+  - name: sample
+    type: StratifiedSampler
+    depends_on: [extract_symbols]
+    config:
+      max_rows: 10
+      strategy: complexity_weighted
+      seed: 42
+
+output:
+  dir: c:\Development\DistSharp\.comparison\baseline
+  format: jsonl
+  write_metadata: true

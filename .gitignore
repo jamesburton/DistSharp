@@ -486,3 +486,9 @@ $RECYCLE.BIN/
 
 # DistSharp smoke-test scratch directory
 .smoke-test/
+
+# DistSharp comparison harness — keep scripts/spec/report, ignore venv + generated outputs
+.comparison/.venv/
+.comparison/baseline/
+.comparison/distsharp-out/
+.comparison/distilabel-out/
