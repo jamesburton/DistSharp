@@ -30,6 +30,7 @@ public static class HostBuilder
         builder.Services.AddDistSharpCore();
         builder.Services.AddDistSharpRoslyn();
         builder.Services.AddDistSharpProviders();
+        builder.Services.AddHttpClient("HuggingFace");
 
         builder.Services.AddSingleton(AnsiConsole.Console);
 

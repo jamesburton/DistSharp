@@ -1,3 +1,4 @@
+using System.Globalization;
 using DistSharp.Cli.Configuration;
 using DistSharp.Cli.Progress;
 using DistSharp.Core.Abstractions;
@@ -61,6 +62,7 @@ public sealed class PipelineRunCommandHandler
 
         var pipelineConfig = new PipelineConfig();
         configuration.Bind(pipelineConfig);
+        PopulateStepConfigs(configuration, pipelineConfig);
 
         if (!string.IsNullOrEmpty(options.OutDir))
         {
@@ -101,5 +103,90 @@ public sealed class PipelineRunCommandHandler
             this.console.MarkupLine($"[red]Failed: {ex.Message}[/]");
             return 1;
         }
+    }
+
+    private static void PopulateStepConfigs(IConfiguration configuration, PipelineConfig pipelineConfig)
+    {
+        var stepsSection = configuration.GetSection("steps");
+        var i = 0;
+        foreach (var stepSection in stepsSection.GetChildren())
+        {
+            if (i >= pipelineConfig.Steps.Count)
+            {
+                break;
+            }
+
+            var configSection = stepSection.GetSection("config");
+            if (configSection.Exists())
+            {
+                pipelineConfig.Steps[i].Config = FlattenConfigSection(configSection);
+            }
+
+            i++;
+        }
+    }
+
+    private static Dictionary<string, object?> FlattenConfigSection(IConfigurationSection section)
+    {
+        var result = new Dictionary<string, object?>();
+        foreach (var child in section.GetChildren())
+        {
+            if (child.Value is not null)
+            {
+                result[child.Key] = ParseScalar(child.Value);
+                continue;
+            }
+
+            var children = child.GetChildren().ToList();
+            if (children.Count == 0)
+            {
+                result[child.Key] = null;
+                continue;
+            }
+
+            if (children.All(c => int.TryParse(c.Key, out _)))
+            {
+                var list = new List<object?>();
+                foreach (var item in children)
+                {
+                    if (item.Value is not null)
+                    {
+                        list.Add(ParseScalar(item.Value));
+                    }
+                    else
+                    {
+                        list.Add(FlattenConfigSection(item));
+                    }
+                }
+
+                result[child.Key] = list;
+            }
+            else
+            {
+                result[child.Key] = FlattenConfigSection(child);
+            }
+        }
+
+        return result;
+    }
+
+    private static object? ParseScalar(string raw)
+    {
+        if (bool.TryParse(raw, out var b))
+        {
+            return b;
+        }
+
+        if (int.TryParse(raw, out var i))
+        {
+            return i;
+        }
+
+        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var d))
+        {
+            return d;
+        }
+
+        return raw;
     }
 }
