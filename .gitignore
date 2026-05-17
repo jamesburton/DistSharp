@@ -487,6 +487,9 @@ $RECYCLE.BIN/
 # DistSharp smoke-test scratch directory
 .smoke-test/
 
+# Local NuGet feed for dnx-from-local-source testing
+.localfeed/
+
 # DistSharp comparison harness — keep scripts/spec/report, ignore venv + generated outputs
 .comparison/.venv/
 .comparison/baseline/

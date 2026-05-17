@@ -4,7 +4,19 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>distsharp</ToolCommandName>
     <PackageId>DistSharp</PackageId>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
+    <Authors>James Burton</Authors>
+    <Description>Roslyn-aware synthetic-data pipelines for .NET — extracts symbols from a solution and generates instruction-tuning datasets via OpenAI / Anthropic / Gemini / Ollama / LM Studio.</Description>
+    <PackageTags>llm;dataset;fine-tuning;synthetic-data;roslyn;dotnet;distilabel</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/jamesburton/DistSharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/jamesburton/DistSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DistSharp.Core\DistSharp.Core.csproj" />
     <ProjectReference Include="..\DistSharp.Roslyn\DistSharp.Roslyn.csproj" />
