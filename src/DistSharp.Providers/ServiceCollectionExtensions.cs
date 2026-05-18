@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
         // Options — defaults below match nominal use; environment-specific providers (Azure deployment
         // name, Ollama/LM Studio model tags, generic compatible endpoints) have no default because
         // the right value depends on the user's deployment.
-        services.AddSingleton<OpenAIProviderOptions>(_ => new OpenAIProviderOptions { DefaultModel = "gpt-4.1-mini" });
+        services.AddSingleton<OpenAIProviderOptions>(_ => new OpenAIProviderOptions { DefaultModel = "gpt-5.4" });
         services.AddSingleton<AzureOpenAIProviderOptions>(_ => new AzureOpenAIProviderOptions());
         services.AddSingleton<OpenAICompatibleEndpointOptions>(_ => new OpenAICompatibleEndpointOptions());
         services.AddSingleton<OllamaProviderOptions>(_ => new OllamaProviderOptions());

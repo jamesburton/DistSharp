@@ -102,7 +102,7 @@ export OPENAI_API_KEY="sk-..."
 # 3. Generate an explanation dataset
 dnx DistSharp generate ./MyApp.sln \
   --provider openai \
-  --model gpt-4.1-mini \
+  --model gpt-5.4 \
   --dataset-type explanation \
   --max-rows 5000 \
   --workers 4 \
@@ -145,7 +145,7 @@ dnx DistSharp generate <solution> [options]
 | `--dataset-type <type>` | `mixed` | `explanation` / `completion` / `bug-fix` / `unit-test` / `docstring` / `refactor` / `architecture-qa` / `mixed` |
 | `--format <fmt>` | `jsonl` | `jsonl` / `parquet` / `csv` |
 | `--provider <name>` | `openai` | See [LLM providers](#llm-providers) |
-| `--model <name>` | provider default (see below) | e.g. `gpt-4.1-mini`, `claude-sonnet-4-6`, `gemini-2.5-flash`, `qwen2.5-coder:32b`. Run `distsharp models --provider <name>` if unsure. |
+| `--model <name>` | provider default (see below) | e.g. `gpt-5.4`, `gpt-5.4-mini`, `claude-sonnet-4-6`, `gemini-2.5-flash`, `qwen2.5-coder:32b`. Run `distsharp models --provider <name>` if unsure. |
 | `--include-tests` | `false` | Include test projects in analysis |
 | `--include-generated` | `false` | Include `*.g.cs` and similar |
 | `--min-complexity <n>` | `3` | Skip methods below this cyclomatic complexity |
@@ -236,18 +236,48 @@ Set with `--provider` / `--model` (or in the YAML config).
 | Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
 | Azure OpenAI | `azure-openai` | `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_API_KEY` |
 | Google Gemini | `gemini` | `GEMINI_API_KEY` |
-| Ollama (local) | `ollama` | `OLLAMA_BASE_URL` (default `http://localhost:11434`) |
+| Ollama (local or cloud) | `ollama` | `OLLAMA_BASE_URL` (default `http://localhost:11434`); cloud also needs `OLLAMA_API_KEY` |
 | LM Studio (local) | `lmstudio` | `LMSTUDIO_BASE_URL` (default `http://localhost:1234`) |
 | Any OpenAI-compatible endpoint | `openai-compatible` | `OPENAI_COMPATIBLE_BASE_URL` + `OPENAI_COMPATIBLE_API_KEY` |
 
 **Default models when `--model` is omitted:**
 
-| Provider | Default model |
-|---|---|
-| `openai` | `gpt-4.1-mini` |
-| `anthropic` | `claude-haiku-4-5` |
-| `gemini` | `gemini-2.5-flash` |
-| `azure-openai`, `ollama`, `lmstudio`, `openai-compatible` | no default — pass `--model` (deployment name on Azure, tag on Ollama, etc.) |
+| Provider | Default model | Cheaper fallback |
+|---|---|---|
+| `openai` | `gpt-5.4` | `gpt-5.4-mini` |
+| `anthropic` | `claude-haiku-4-5` | — |
+| `gemini` | `gemini-2.5-flash` | — |
+| `azure-openai`, `ollama`, `lmstudio`, `openai-compatible` | no default — pass `--model` (deployment name on Azure, tag on Ollama, etc.) | — |
+
+### Ollama: local vs cloud
+
+The `ollama` provider speaks the OpenAI-compatible chat completions protocol exposed by both a self-hosted Ollama server and Ollama's hosted "Turbo" service.
+
+**Local server (default):**
+
+```bash
+ollama serve                          # listens on http://localhost:11434
+ollama pull qwen2.5-coder:32b         # cache the model locally first
+
+dnx DistSharp generate ./MyApp.sln \
+  --provider ollama \
+  --model qwen2.5-coder:32b
+```
+
+No auth header is sent in local mode. Set `OLLAMA_BASE_URL` if your Ollama listens on a non-default host/port (e.g. a remote workstation, a container, or behind a reverse proxy).
+
+**Cloud / hosted Ollama:**
+
+```bash
+export OLLAMA_BASE_URL="https://ollama.com"   # or your gateway URL
+export OLLAMA_API_KEY="ol-..."
+
+dnx DistSharp generate ./MyApp.sln \
+  --provider ollama \
+  --model gpt-oss:120b
+```
+
+When `OLLAMA_API_KEY` (or `--ApiKey` on the provider options) is set, DistSharp sends `Authorization: Bearer <key>` on every request. `distsharp models --provider ollama` works the same way in both modes — it hits `/v1/models` against whatever `OLLAMA_BASE_URL` is configured.
 
 All providers share a single retry helper that handles HTTP 408/429/500/502/503/504 with exponential backoff, honouring `Retry-After` when present. Authentication, request shape, and response parsing live in provider-specific classes under `src/DistSharp.Providers/`.
 
@@ -296,7 +326,7 @@ steps:
     depends_on: [sample]
     config:
       provider: openai
-      model: gpt-4.1-mini
+      model: gpt-5.4
       dataset_type: explanation
       workers: 4
       temperature: 0.7
@@ -394,7 +424,7 @@ DistSharp/
 
 DistSharp and distilabel are not direct competitors — distilabel is a general-purpose synthetic-data framework; DistSharp is a purpose-built .NET code-dataset generator.
 
-A direct comparison was run on `c:\Development\ai-roi\AiRoi.sln` with both pipelines processing the same 10 methods through the same `gpt-4.1-mini` model with identical prompts:
+A direct comparison was run on `c:\Development\ai-roi\AiRoi.sln` with both pipelines processing the same 10 methods through the same `gpt-5.4-mini` model with identical prompts:
 
 | Test | DistSharp | distilabel |
 |---|---|---|
@@ -451,6 +481,8 @@ The release workflow then runs build → test → pack → push to nuget.org →
 - [ ] Embedding-based deduplication via local embedding model
 - [ ] MCP server mode — expose the running pipeline as a Model Context Protocol server
 - [ ] Cost estimation in `inspect` based on real token-per-symbol measurements
+- [ ] **Local ONNX provider** via Microsoft.Extensions.AI.OnnxRuntimeGenAI + Agent Framework. CPU / CUDA / DirectML / Vulkan execution providers, fetch-on-first-use from Hugging Face with HF + Ollama cache reuse — see [`docs/superpowers/specs/2026-05-18-onnx-provider-design.md`](docs/superpowers/specs/2026-05-18-onnx-provider-design.md).
+- [ ] **Dataset sync** (`dataset pull` / `dataset push` / `dataset merge` / `dataset sync`) against Hugging Face Hub and git-based dataset repos, keeping a generated dataset current as its source code evolves — see [`docs/superpowers/specs/2026-05-18-dataset-sync-design.md`](docs/superpowers/specs/2026-05-18-dataset-sync-design.md).
 
 ---
 
