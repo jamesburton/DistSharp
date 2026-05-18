@@ -174,6 +174,7 @@ public sealed class DatasetSyncOrchestrator
             orphanIds,
             orphanPolicy,
             datasetDir,
+            solutionPath,
             cancellationToken).ConfigureAwait(false);
 
         return plan;
@@ -295,6 +296,7 @@ public sealed class DatasetSyncOrchestrator
         HashSet<string> orphanIds,
         OrphanPolicy orphanPolicy,
         string datasetDir,
+        string solutionPath,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(dataDir);
@@ -352,8 +354,8 @@ public sealed class DatasetSyncOrchestrator
         await File.WriteAllTextAsync(dataFile, sb.ToString(), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
 
         // Write updated manifest.
-        var headSha = GitHelper.TryGetHeadSha(dataFile);
-        var branch = GitHelper.TryGetBranch(dataFile);
+        var headSha = GitHelper.TryGetHeadSha(solutionPath);
+        var branch = GitHelper.TryGetBranch(solutionPath);
         string? commitRef = headSha is not null
             ? (branch is not null ? $"{branch}@{headSha[..Math.Min(7, headSha.Length)]}" : headSha[..Math.Min(7, headSha.Length)])
             : null;

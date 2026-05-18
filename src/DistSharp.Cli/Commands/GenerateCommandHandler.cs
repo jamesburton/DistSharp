@@ -1,6 +1,7 @@
 using DistSharp.Cli.Progress;
 using DistSharp.Core.Abstractions;
 using DistSharp.Core.Pipeline;
+using DistSharp.Core.Sync;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 
@@ -15,6 +16,7 @@ public sealed class GenerateCommandHandler
     private readonly LiveProgressDisplay progress;
     private readonly IAnsiConsole console;
     private readonly ILogger<GenerateCommandHandler> logger;
+    private readonly ILoggerFactory loggerFactory;
 
     /// <summary>Initializes a new instance of the <see cref="GenerateCommandHandler"/> class.</summary>
     /// <param name="pipelineBuilder">Builds pipeline definitions from configuration.</param>
@@ -23,13 +25,15 @@ public sealed class GenerateCommandHandler
     /// <param name="progress">Renders live progress to the console.</param>
     /// <param name="console">The Spectre console for output.</param>
     /// <param name="logger">Logger for error reporting.</param>
+    /// <param name="loggerFactory">Logger factory for creating typed loggers.</param>
     public GenerateCommandHandler(
         PipelineBuilder pipelineBuilder,
         IDatasetWriterFactory writerFactory,
         IPipelineExecutor executor,
         LiveProgressDisplay progress,
         IAnsiConsole console,
-        ILogger<GenerateCommandHandler> logger)
+        ILogger<GenerateCommandHandler> logger,
+        ILoggerFactory loggerFactory)
     {
         this.pipelineBuilder = pipelineBuilder;
         this.writerFactory = writerFactory;
@@ -37,6 +41,7 @@ public sealed class GenerateCommandHandler
         this.progress = progress;
         this.console = console;
         this.logger = logger;
+        this.loggerFactory = loggerFactory;
     }
 
     /// <summary>Runs the generate command.</summary>
@@ -74,7 +79,13 @@ public sealed class GenerateCommandHandler
             .Select(s => ((MetricsTrackingStep)s.Step).Metrics)
             .ToList();
 
-        await using var writer = this.writerFactory.Create(config.Output);
+        var innerWriter = this.writerFactory.Create(config.Output);
+        await using var writer = new ManifestWriter(
+            innerWriter,
+            config.Output.Dir,
+            options.Solution,
+            options.DatasetType,
+            this.loggerFactory.CreateLogger<ManifestWriter>());
 
         try
         {

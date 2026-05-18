@@ -1,5 +1,3 @@
-using DistSharp.Core.Abstractions;
-using DistSharp.Core.Models;
 using DistSharp.Core.Sync;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -7,26 +5,24 @@ using Spectre.Console;
 namespace DistSharp.Cli.Commands;
 
 /// <summary>
-/// Handles the <c>dataset migrate</c> command — seeds <c>_distsharp/manifest.json</c> for an
-/// existing dataset directory that was generated before sync support was added.
-/// No LLM calls are made: this command only re-establishes row identity for existing rows.
+/// Handles the <c>dataset migrate</c> command — seeds an empty <c>_distsharp/manifest.json</c>
+/// for an existing dataset directory that was generated before sync support was added.
+/// Legacy JSONL rows do not carry <c>symbol_fqn</c>, so they cannot be mapped back to symbols;
+/// the manifest is therefore seeded with an empty <c>rows[]</c>. The next <c>dataset sync</c>
+/// run will treat all current symbols as new and regenerate all rows.
 /// </summary>
 public sealed class DatasetMigrateCommandHandler
 {
-    private readonly ISolutionAnalyzer analyzer;
     private readonly IAnsiConsole console;
     private readonly ILogger<DatasetMigrateCommandHandler> logger;
 
     /// <summary>Initializes a new instance of the <see cref="DatasetMigrateCommandHandler"/> class.</summary>
-    /// <param name="analyzer">The solution analyser used to re-extract symbols.</param>
     /// <param name="console">The Spectre console for output.</param>
     /// <param name="logger">Logger for warnings and diagnostics.</param>
     public DatasetMigrateCommandHandler(
-        ISolutionAnalyzer analyzer,
         IAnsiConsole console,
         ILogger<DatasetMigrateCommandHandler> logger)
     {
-        this.analyzer = analyzer;
         this.console = console;
         this.logger = logger;
     }
@@ -58,56 +54,23 @@ public sealed class DatasetMigrateCommandHandler
 
         try
         {
-            // Extract current symbols from solution (no LLM calls).
-            var analysisOptions = new SolutionAnalysisOptions { MinComplexity = 1 };
-            var symbols = new Dictionary<string, ExtractedSymbol>(StringComparer.Ordinal);
-
-            await foreach (var sym in this.analyzer.AnalyzeAsync(options.Solution, analysisOptions, cancellationToken).ConfigureAwait(false))
-            {
-                symbols[sym.FullyQualifiedName] = sym;
-            }
-
-            this.console.MarkupLine($"Extracted [cyan]{symbols.Count}[/] symbols from solution.");
-
-            // Count existing JSONL rows in the directory (flat layout — legacy format).
+            // Count legacy JSONL rows so the user gets a useful summary.
             var jsonlFiles = Directory.GetFiles(options.DatasetDir, "*.jsonl", SearchOption.TopDirectoryOnly);
-            var promptVersion = RowIdentity.DefaultPromptVersion(options.DatasetType);
-
-            var rows = new List<ManifestRow>();
-            var skipped = 0;
-            var offset = 0;
+            var legacyRowCount = 0;
 
             foreach (var file in jsonlFiles)
             {
                 var lines = await File.ReadAllLinesAsync(file, cancellationToken).ConfigureAwait(false);
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrWhiteSpace(line))
-                    {
-                        continue;
-                    }
-
-                    // Legacy rows don't carry symbol_fqn — we can't map them back.
-                    // Log a warning and skip. A future heuristic (§11 risk #6) could
-                    // match by instruction-text similarity.
-                    this.logger.LogWarning("migrate: cannot map row at offset {Offset} in {File} back to a symbol (no symbol_fqn in legacy rows); skipping.", offset, file);
-                    skipped++;
-                    offset++;
-                }
+                legacyRowCount += lines.Count(l => !string.IsNullOrWhiteSpace(l));
             }
 
-            // Build manifest from all symbols in the current solution. Row offsets are 0-based
-            // within a notional rewrite of the data file; existing legacy data is NOT rewritten.
-            var manifestRows = symbols.Values.Select((sym, i) => new ManifestRow
-            {
-                Id = RowIdentity.ComputeRowId(sym.FullyQualifiedName, options.DatasetType, promptVersion),
-                SymbolFqn = sym.FullyQualifiedName,
-                SymbolKind = sym.Kind,
-                DatasetType = options.DatasetType,
-                BodySha = RowIdentity.ComputeBodySha(sym.BodyText),
-                PromptVersion = promptVersion,
-                RowOffset = i,
-            }).ToList();
+            // Legacy rows don't carry symbol_fqn — mapping them back to symbols is not possible
+            // without a heuristic (deferred to Phase 6, spec §11 risk #6).
+            // Write a manifest with empty rows[]. The next `dataset sync` run will treat every
+            // current symbol as new and regenerate all rows from scratch.
+            this.logger.LogWarning(
+                "migrate: {Count} legacy row(s) found but cannot be mapped back to symbols (no symbol_fqn). Seeding empty manifest; next sync will regenerate all rows.",
+                legacyRowCount);
 
             var headSha = GitHelper.TryGetHeadSha(options.Solution);
             var branch = GitHelper.TryGetBranch(options.Solution);
@@ -125,12 +88,12 @@ public sealed class DatasetMigrateCommandHandler
                     SolutionSha = headSha,
                     Commit = commitRef,
                 },
-                Rows = manifestRows,
+                Rows = new List<ManifestRow>(),
             };
 
             await manifest.SaveAsync(manifestPath, cancellationToken).ConfigureAwait(false);
 
-            this.console.MarkupLine($"[green]Seeded manifest with {manifestRows.Count} symbol(s). {skipped} legacy row(s) could not be mapped and were skipped.[/]");
+            this.console.MarkupLine($"[green]Seeded empty manifest. {legacyRowCount} legacy row(s) could not be mapped (no symbol_fqn); next sync will regenerate all rows.[/]");
             this.console.MarkupLine($"[grey]Manifest written to {manifestPath}[/]");
             return 0;
         }
