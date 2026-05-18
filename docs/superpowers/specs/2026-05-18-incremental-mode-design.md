@@ -1,7 +1,7 @@
 # DistSharp — Incremental Mode: Decision Spec
 
 **Date:** 2026-05-18
-**Status:** Decision record — accepted.
+**Status:** Decision: deprecate, see README.
 **Author:** agent
 **Supersedes:** roadmap item "Incremental mode — only re-generate rows for files changed since the last run"
 

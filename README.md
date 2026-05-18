@@ -221,6 +221,8 @@ dnx DistSharp dataset sync <dataset-dir> --solution <sln> [--orphan-policy drop|
 
 Pull/push to Hugging Face / git remotes, and `dataset merge` for combining snapshots, are planned for a later phase — see the [Roadmap](#roadmap). Today the command operates entirely locally.
 
+If you're looking for `--incremental` flags — they're not coming. `dataset sync` covers the regenerate-only-what-changed workflow; the spec at [`docs/superpowers/specs/2026-05-18-incremental-mode-design.md`](docs/superpowers/specs/2026-05-18-incremental-mode-design.md) explains why.
+
 ### `dataset migrate`
 
 Seeds `_distsharp/manifest.json` for a dataset directory that was generated before the manifest format existed, so the next `dataset sync` can compute a sensible diff.
@@ -533,7 +535,6 @@ The release workflow then runs build → test → pack → push to nuget.org →
 
 - [ ] `mixed` dataset type fans out across all seven prompt builders in one run
 - [ ] Per-prompt-builder symbol-kind filter (so `unit-test` only ever sees methods)
-- [ ] Incremental mode — only re-generate rows for files changed since the last run (overlaps with `dataset sync` — needs reconciliation)
 - [ ] Cross-project context (called symbols, implemented interfaces, inheritance chain) populated on `ExtractedSymbol`
 - [ ] Preference datasets — ranked pairs (chosen/rejected) for DPO/ORPO
 - [ ] Embedding-based deduplication via local embedding model
