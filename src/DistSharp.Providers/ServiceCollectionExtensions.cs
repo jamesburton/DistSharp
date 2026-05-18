@@ -1,6 +1,7 @@
 using DistSharp.Core.Abstractions;
 using DistSharp.Providers.Anthropic;
 using DistSharp.Providers.Gemini;
+using DistSharp.Providers.Onnx;
 using DistSharp.Providers.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LmStudioProviderOptions>(_ => new LmStudioProviderOptions());
         services.AddSingleton<AnthropicProviderOptions>(_ => new AnthropicProviderOptions { DefaultModel = "claude-haiku-4-5" });
         services.AddSingleton<GeminiProviderOptions>(_ => new GeminiProviderOptions { DefaultModel = "gemini-2.5-flash" });
+        services.AddSingleton<OnnxProviderOptions>(_ => new OnnxProviderOptions());
 
         // HttpClient per provider (each gets a typed client via AddHttpClient).
         services.AddHttpClient<OpenAIProvider>();
@@ -33,6 +35,17 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<LmStudioProvider>();
         services.AddHttpClient<AnthropicProvider>();
         services.AddHttpClient<GeminiProvider>();
+
+        // ONNX provider — HuggingFaceModelCache uses IHttpClientFactory for its downloads.
+        services.AddHttpClient("HuggingFace");
+        services.AddSingleton<HuggingFaceModelCache>(sp =>
+        {
+            var opts = sp.GetRequiredService<OnnxProviderOptions>();
+            var httpFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var http = httpFactory.CreateClient("HuggingFace");
+            return new HuggingFaceModelCache(opts.CacheRoot, http);
+        });
+        services.AddTransient<OnnxProvider>();
 
         services.AddSingleton<ILlmProviderFactory, LlmProviderFactory>();
 

@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.CommandLine.Invocation;
 using DistSharp.Cli.Commands;
 using DistSharp.Core.Sync;
+using DistSharp.Providers.Onnx;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DistSharp.Cli;
@@ -9,6 +10,9 @@ namespace DistSharp.Cli;
 /// <summary>Entry point for the DistSharp CLI.</summary>
 public static class Program
 {
+    private const string PhaseOneAcceleratorError =
+        "Accelerator '{0}' is not supported. Phase 1 supports CPU only — see docs/superpowers/specs/2026-05-18-onnx-provider-design.md";
+
     /// <summary>The main entry point.</summary>
     /// <param name="args">Command-line arguments.</param>
     /// <returns>Process exit code.</returns>
@@ -34,7 +38,7 @@ public static class Program
 
     private static Command BuildModelsCommand(IServiceProvider services)
     {
-        var provider = new Option<string>("--provider", () => "openai", "LLM provider to query (openai, anthropic, gemini, ollama, lmstudio, azure-openai, openai-compatible)");
+        var provider = new Option<string>("--provider", () => "openai", "LLM provider to query (openai, anthropic, gemini, ollama, lmstudio, azure-openai, openai-compatible, onnx)");
         var filter = new Option<string?>("--filter", () => null, "Case-insensitive substring to filter the model list");
 
         var cmd = new Command("models", "List models exposed by an LLM provider's /models endpoint")
@@ -73,6 +77,8 @@ public static class Program
         var workers = new Option<int>("--workers", () => 4, "Parallel LLM workers");
         var seed = new Option<int?>("--seed", () => null, "Random seed");
         var dryRun = new Option<bool>("--dry-run", () => false, "Skip LLM calls");
+        var accelerator = new Option<string?>("--accelerator", () => null, "ONNX execution provider. Phase 1 accepts: cpu");
+        var modelVariant = new Option<string?>("--model-variant", () => null, "ONNX model variant subdirectory, e.g. cpu-int4-rtn-block-32-acc-level-4");
 
         var cmd = new Command("generate", "Analyse a solution and generate a training dataset")
         {
@@ -90,10 +96,29 @@ public static class Program
             workers,
             seed,
             dryRun,
+            accelerator,
+            modelVariant,
         };
 
         cmd.SetHandler(async (context) =>
         {
+            var acceleratorValue = context.ParseResult.GetValueForOption(accelerator);
+            if (!string.IsNullOrEmpty(acceleratorValue) &&
+                !acceleratorValue.Equals("cpu", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Console.Error.Write(string.Format(PhaseOneAcceleratorError, acceleratorValue) + Environment.NewLine);
+                context.ExitCode = 2;
+                return;
+            }
+
+            // Forward ONNX-specific options to the registered singleton before the handler runs.
+            if (acceleratorValue is not null || context.ParseResult.GetValueForOption(modelVariant) is not null)
+            {
+                var onnxOpts = services.GetRequiredService<OnnxProviderOptions>();
+                onnxOpts.Accelerator = acceleratorValue;
+                onnxOpts.ModelVariant = context.ParseResult.GetValueForOption(modelVariant);
+            }
+
             var options = new GenerateCommandOptions
             {
                 Solution = context.ParseResult.GetValueForArgument(solution),

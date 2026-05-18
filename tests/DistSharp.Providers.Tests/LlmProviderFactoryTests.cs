@@ -21,6 +21,7 @@ public sealed class LlmProviderFactoryTests
     [InlineData("lm-studio", "lmstudio")]
     [InlineData("openai-compatible", "openai-compatible")]
     [InlineData("compatible", "openai-compatible")]
+    [InlineData("onnx", "onnx")]
     public void Create_ReturnsExpectedProvider(string input, string expectedName)
     {
         var factory = BuildFactory();

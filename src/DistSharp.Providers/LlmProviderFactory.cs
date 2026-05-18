@@ -1,6 +1,7 @@
 using DistSharp.Core.Abstractions;
 using DistSharp.Providers.Anthropic;
 using DistSharp.Providers.Gemini;
+using DistSharp.Providers.Onnx;
 using DistSharp.Providers.OpenAI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,7 +31,8 @@ public sealed class LlmProviderFactory : ILlmProviderFactory
             "ollama" => this.services.GetRequiredService<OllamaProvider>(),
             "lmstudio" or "lm-studio" => this.services.GetRequiredService<LmStudioProvider>(),
             "openai-compatible" or "compatible" => this.services.GetRequiredService<OpenAICompatibleEndpointProvider>(),
-            _ => throw new InvalidOperationException($"Unknown LLM provider: '{providerName}'. Supported: openai, anthropic, azure-openai, gemini, ollama, lmstudio, openai-compatible."),
+            "onnx" => this.services.GetRequiredService<OnnxProvider>(),
+            _ => throw new InvalidOperationException($"Unknown LLM provider: '{providerName}'. Supported: openai, anthropic, azure-openai, gemini, ollama, lmstudio, openai-compatible, onnx."),
         };
     }
 }

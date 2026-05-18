@@ -239,6 +239,7 @@ Set with `--provider` / `--model` (or in the YAML config).
 | Ollama (local or cloud) | `ollama` | `OLLAMA_BASE_URL` (default `http://localhost:11434`); cloud also needs `OLLAMA_API_KEY` |
 | LM Studio (local) | `lmstudio` | `LMSTUDIO_BASE_URL` (default `http://localhost:1234`) |
 | Any OpenAI-compatible endpoint | `openai-compatible` | `OPENAI_COMPATIBLE_BASE_URL` + `OPENAI_COMPATIBLE_API_KEY` |
+| Local ONNX (Phase 1 in progress, CPU only) | `onnx` | `HF_TOKEN` (optional, for private repos) |
 
 **Default models when `--model` is omitted:**
 
@@ -278,6 +279,24 @@ dnx DistSharp generate ./MyApp.sln \
 ```
 
 When `OLLAMA_API_KEY` (or `--ApiKey` on the provider options) is set, DistSharp sends `Authorization: Bearer <key>` on every request. `distsharp models --provider ollama` works the same way in both modes — it hits `/v1/models` against whatever `OLLAMA_BASE_URL` is configured.
+
+### ONNX (local, CPU — Phase 1)
+
+Run ONNX-format models directly on your machine using [ONNX Runtime GenAI](https://github.com/microsoft/onnxruntime-genai). Phase 1 supports CPU execution only; CUDA, DirectML, and Vulkan EPs are planned for Phase 2.
+
+Models are loaded from the Hugging Face Hub cache (`~/.cache/huggingface/hub/` on Unix or `%USERPROFILE%\.cache\huggingface\hub\` on Windows). If the model is not cached, DistSharp downloads it automatically on first use via the HF Hub HTTP API (set `HF_TOKEN` for private repos).
+
+```bash
+dnx DistSharp generate ./MyApp.sln \
+  --provider onnx \
+  --model microsoft/Phi-4-mini-instruct-onnx \
+  --accelerator cpu \
+  --max-rows 500
+```
+
+`--model-variant` overrides the variant subdirectory (e.g. `cpu-int4-rtn-block-32-acc-level-4`). When omitted, Phase 1 applies this priority: `cpu-int4-rtn-block-32-acc-level-4` → first `cpu-int4*` → first `cpu-fp16*` → first `cpu-fp32*`.
+
+Note: inference is significantly slower on CPU than on GPU. Expect several seconds per row. The `--workers` option does not parallelise ONNX sessions in Phase 1 (`MaxConcurrentSessions` defaults to 1).
 
 All providers share a single retry helper that handles HTTP 408/429/500/502/503/504 with exponential backoff, honouring `Retry-After` when present. Authentication, request shape, and response parsing live in provider-specific classes under `src/DistSharp.Providers/`.
 
