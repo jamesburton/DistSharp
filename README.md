@@ -23,9 +23,9 @@ dnx DistSharp export ./distsharp-out --format alpaca --hf-repo myorg/dataset
 - [Why DistSharp](#why-distsharp)
 - [Install](#install)
 - [Quick start](#quick-start)
-- [Commands](#commands)
+- [Commands](#commands) — `inspect`, `generate`, `models`, `init`, `pipeline run`, `export`, `dataset sync`, `dataset migrate`
 - [Dataset types](#dataset-types)
-- [LLM providers](#llm-providers)
+- [LLM providers](#llm-providers) — incl. local ONNX (Phase 1, CPU)
 - [Pipeline configuration](#pipeline-configuration)
 - [Architecture](#architecture)
 - [Comparison with distilabel](#comparison-with-distilabel)
@@ -204,6 +204,32 @@ dnx DistSharp export <dataset-dir> [options]
 | `--hf-repo <repo>` | Hugging Face dataset repo (`org/name`) — creates it if missing |
 | `--hf-token <token>` | HF API token (or set `HF_TOKEN`) |
 | `--split <name>` | Dataset split name (default `train`) |
+
+### `dataset sync`
+
+Re-runs the pipeline against the current state of a solution, regenerating only rows whose source symbol has changed since the dataset was last produced. Every `generate` run writes a `_distsharp/manifest.json` alongside the data file; `dataset sync` uses it to compute the new/stale/unchanged/orphan diff and only spends LLM tokens on what actually moved.
+
+```bash
+dnx DistSharp dataset sync <dataset-dir> --solution <sln> [--orphan-policy drop|keep|archive] [--dry-run]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--solution <path>` | — | The `.sln`/`.csproj` to diff against the manifest. |
+| `--orphan-policy <policy>` | `drop` | What to do with rows whose symbol no longer exists: `drop`, `keep`, or `archive` (move to `_distsharp/archive/`). |
+| `--dry-run` | `false` | Print the plan (counts + estimated LLM call count) without invoking any provider. |
+
+Pull/push to Hugging Face / git remotes, and `dataset merge` for combining snapshots, are planned for a later phase — see the [Roadmap](#roadmap). Today the command operates entirely locally.
+
+### `dataset migrate`
+
+Seeds `_distsharp/manifest.json` for a dataset directory that was generated before the manifest format existed, so the next `dataset sync` can compute a sensible diff.
+
+```bash
+dnx DistSharp dataset migrate <dataset-dir> --solution <sln>
+```
+
+No LLM calls — purely re-establishes row identities for the existing rows.
 
 ---
 
@@ -492,16 +518,27 @@ The release workflow then runs build → test → pack → push to nuget.org →
 
 ## Roadmap
 
+### Recently landed
+
+- [x] **Local ONNX provider — Phase 1** — CPU baseline via `Microsoft.Extensions.AI.OnnxRuntimeGenAI`, fetch-on-first-use against the Hugging Face Hub cache. CUDA / DirectML / Vulkan EPs and Agent Framework integration still to come — see [`docs/superpowers/specs/2026-05-18-onnx-provider-design.md`](docs/superpowers/specs/2026-05-18-onnx-provider-design.md).
+- [x] **Dataset sync — Phase 1** — `dataset sync` and `dataset migrate` commands, `_distsharp/manifest.json` written by every `generate` run, regenerate-only-what-changed semantics. Pull/push transports and `dataset merge` still to come — see [`docs/superpowers/specs/2026-05-18-dataset-sync-design.md`](docs/superpowers/specs/2026-05-18-dataset-sync-design.md).
+
+### Next up
+
+- [ ] ONNX Phases 2–5: DirectML + CUDA + Vulkan execution providers; Ollama cache awareness; per-EP NuGet packaging
+- [ ] ONNX Phase 6: Agent Framework `agent_step` pipeline node
+- [ ] Dataset sync Phases 2–3: `dataset pull` / `dataset push` (HF Hub + git) and `dataset merge` with conflict policies
+
+### Backlog
+
 - [ ] `mixed` dataset type fans out across all seven prompt builders in one run
 - [ ] Per-prompt-builder symbol-kind filter (so `unit-test` only ever sees methods)
-- [ ] Incremental mode — only re-generate rows for files changed since the last run
+- [ ] Incremental mode — only re-generate rows for files changed since the last run (overlaps with `dataset sync` — needs reconciliation)
 - [ ] Cross-project context (called symbols, implemented interfaces, inheritance chain) populated on `ExtractedSymbol`
 - [ ] Preference datasets — ranked pairs (chosen/rejected) for DPO/ORPO
 - [ ] Embedding-based deduplication via local embedding model
 - [ ] MCP server mode — expose the running pipeline as a Model Context Protocol server
 - [ ] Cost estimation in `inspect` based on real token-per-symbol measurements
-- [ ] **Local ONNX provider** via Microsoft.Extensions.AI.OnnxRuntimeGenAI + Agent Framework. CPU / CUDA / DirectML / Vulkan execution providers, fetch-on-first-use from Hugging Face with HF + Ollama cache reuse — see [`docs/superpowers/specs/2026-05-18-onnx-provider-design.md`](docs/superpowers/specs/2026-05-18-onnx-provider-design.md).
-- [ ] **Dataset sync** (`dataset pull` / `dataset push` / `dataset merge` / `dataset sync`) against Hugging Face Hub and git-based dataset repos, keeping a generated dataset current as its source code evolves — see [`docs/superpowers/specs/2026-05-18-dataset-sync-design.md`](docs/superpowers/specs/2026-05-18-dataset-sync-design.md).
 
 ---
 
