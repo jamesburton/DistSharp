@@ -210,15 +210,36 @@ public static class Program
         var configPath = new Argument<string>("config", "Path to a YAML pipeline config");
         var outDir = new Option<string?>("--out-dir", () => null, "Override output directory");
         var maxRows = new Option<int?>("--max-rows", () => null, "Override max rows");
+        var accelerator = new Option<string?>("--accelerator", () => null, "ONNX execution provider. Phase 1 accepts: cpu");
+        var modelVariant = new Option<string?>("--model-variant", () => null, "ONNX model variant subdirectory, e.g. cpu-int4-rtn-block-32-acc-level-4");
 
-        var run = new Command("run", "Run a pipeline defined in YAML") { configPath, outDir, maxRows };
+        var run = new Command("run", "Run a pipeline defined in YAML") { configPath, outDir, maxRows, accelerator, modelVariant };
         run.SetHandler(async (context) =>
         {
+            var acceleratorValue = context.ParseResult.GetValueForOption(accelerator);
+            if (!string.IsNullOrEmpty(acceleratorValue) &&
+                !acceleratorValue.Equals("cpu", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Console.Error.Write(string.Format(PhaseOneAcceleratorError, acceleratorValue) + Environment.NewLine);
+                context.ExitCode = 2;
+                return;
+            }
+
+            // Forward ONNX-specific options to the registered singleton before the handler runs.
+            if (acceleratorValue is not null || context.ParseResult.GetValueForOption(modelVariant) is not null)
+            {
+                var onnxOpts = services.GetRequiredService<OnnxProviderOptions>();
+                onnxOpts.Accelerator = acceleratorValue;
+                onnxOpts.ModelVariant = context.ParseResult.GetValueForOption(modelVariant);
+            }
+
             var options = new PipelineRunCommandOptions
             {
                 ConfigPath = context.ParseResult.GetValueForArgument(configPath),
                 OutDir = context.ParseResult.GetValueForOption(outDir),
                 MaxRows = context.ParseResult.GetValueForOption(maxRows),
+                Accelerator = acceleratorValue,
+                ModelVariant = context.ParseResult.GetValueForOption(modelVariant),
             };
 
             var handler = services.GetRequiredService<PipelineRunCommandHandler>();
