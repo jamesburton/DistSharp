@@ -65,9 +65,13 @@ public sealed class GeminiProvider : ILlmProvider
 
         if (!response.IsSuccessStatusCode)
         {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            var hint = ProviderErrorParser.IsModelNotFound((int)response.StatusCode, raw)
+                ? " — run 'distsharp models --provider gemini' to list available models."
+                : string.Empty;
             throw new LlmProviderException(
                 this.ProviderName,
-                $"HTTP {(int)response.StatusCode} from Gemini: {response.ReasonPhrase}",
+                $"HTTP {(int)response.StatusCode} from Gemini: {apiMessage}{hint}",
                 (int)response.StatusCode,
                 raw);
         }
@@ -80,6 +84,57 @@ public sealed class GeminiProvider : ILlmProvider
         }
 
         return text;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = this.options.BaseUrl?.TrimEnd('/') ?? throw new InvalidOperationException("Gemini: BaseUrl is not configured.");
+        var key = this.options.ApiKey ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        if (string.IsNullOrEmpty(key))
+        {
+            throw new InvalidOperationException("Gemini: GEMINI_API_KEY is not set.");
+        }
+
+        var url = $"{baseUrl}/v1beta/models?key={key}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        using var response = await this.http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            throw new LlmProviderException(
+                this.ProviderName,
+                $"HTTP {(int)response.StatusCode} listing models from Gemini: {apiMessage}",
+                (int)response.StatusCode,
+                raw);
+        }
+
+        var json = JsonNode.Parse(raw);
+        if (json?["models"] is not JsonArray models)
+        {
+            return Array.Empty<string>();
+        }
+
+        var result = new List<string>(models.Count);
+        foreach (var item in models)
+        {
+            var name = item?["name"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            // Gemini returns names like "models/gemini-2.5-flash" — strip the prefix.
+            const string prefix = "models/";
+            var trimmed = name.StartsWith(prefix, StringComparison.Ordinal) ? name[prefix.Length..] : name;
+            result.Add(trimmed);
+        }
+
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
     }
 
     private static JsonObject BuildRequestBody(IReadOnlyList<ChatMessage> messages, LlmRequestOptions options)

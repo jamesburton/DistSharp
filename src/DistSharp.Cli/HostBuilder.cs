@@ -52,6 +52,7 @@ public static class HostBuilder
         builder.Services.AddTransient<InitCommandHandler>();
         builder.Services.AddTransient<PipelineRunCommandHandler>();
         builder.Services.AddTransient<ExportCommandHandler>();
+        builder.Services.AddTransient<ModelsCommandHandler>();
 
         return builder.Build();
     }

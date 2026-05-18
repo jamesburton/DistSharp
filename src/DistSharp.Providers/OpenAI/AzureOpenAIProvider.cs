@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using DistSharp.Core.Abstractions;
 using DistSharp.Core.Models;
+using DistSharp.Providers.Internal;
 using Microsoft.Extensions.Logging;
 
 namespace DistSharp.Providers.OpenAI;
@@ -24,6 +26,47 @@ public sealed class AzureOpenAIProvider : OpenAICompatibleProvider
 
     /// <inheritdoc/>
     public override string ProviderName => "azure-openai";
+
+    /// <inheritdoc/>
+    public override async Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = this.Options.BaseUrl?.TrimEnd('/') ?? throw new InvalidOperationException("Azure OpenAI: AZURE_OPENAI_ENDPOINT is not configured.");
+        var url = $"{baseUrl}/openai/models?api-version={ApiVersion}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        this.ApplyAuthentication(request);
+
+        using var response = await this.Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            throw new LlmProviderException(
+                this.ProviderName,
+                $"HTTP {(int)response.StatusCode} listing models from Azure OpenAI: {apiMessage}",
+                (int)response.StatusCode,
+                raw);
+        }
+
+        var json = JsonNode.Parse(raw);
+        if (json?["data"] is not JsonArray data)
+        {
+            return Array.Empty<string>();
+        }
+
+        var result = new List<string>(data.Count);
+        foreach (var item in data)
+        {
+            var id = item?["id"]?.GetValue<string>();
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                result.Add(id);
+            }
+        }
+
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
+    }
 
     /// <inheritdoc/>
     protected override string BuildRequestUrl(LlmRequestOptions options)

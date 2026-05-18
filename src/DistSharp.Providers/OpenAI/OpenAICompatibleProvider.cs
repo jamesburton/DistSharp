@@ -64,9 +64,13 @@ public abstract class OpenAICompatibleProvider : ILlmProvider
 
         if (!response.IsSuccessStatusCode)
         {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            var hint = ProviderErrorParser.IsModelNotFound((int)response.StatusCode, raw)
+                ? $" — run 'distsharp models --provider {this.ProviderName}' to list available models."
+                : string.Empty;
             throw new LlmProviderException(
                 this.ProviderName,
-                $"HTTP {(int)response.StatusCode} from {this.ProviderName}: {response.ReasonPhrase}",
+                $"HTTP {(int)response.StatusCode} from {this.ProviderName}: {apiMessage}{hint}",
                 (int)response.StatusCode,
                 raw);
         }
@@ -78,6 +82,47 @@ public abstract class OpenAICompatibleProvider : ILlmProvider
         }
 
         return this.ExtractContent(json);
+    }
+
+    /// <inheritdoc/>
+    public virtual async Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = this.Options.BaseUrl?.TrimEnd('/') ?? throw new InvalidOperationException($"{this.ProviderName}: BaseUrl is not configured.");
+        var url = baseUrl + "/v1/models";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        this.ApplyAuthentication(request);
+
+        using var response = await this.Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            throw new LlmProviderException(
+                this.ProviderName,
+                $"HTTP {(int)response.StatusCode} listing models from {this.ProviderName}: {apiMessage}",
+                (int)response.StatusCode,
+                raw);
+        }
+
+        var json = JsonNode.Parse(raw);
+        if (json?["data"] is not JsonArray data)
+        {
+            return Array.Empty<string>();
+        }
+
+        var result = new List<string>(data.Count);
+        foreach (var item in data)
+        {
+            var id = item?["id"]?.GetValue<string>();
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                result.Add(id);
+            }
+        }
+
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
     }
 
     /// <summary>Maps <see cref="ChatRole"/> to the OpenAI role string.</summary>

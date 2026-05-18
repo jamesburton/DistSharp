@@ -17,4 +17,10 @@ public interface ILlmProvider
         IReadOnlyList<ChatMessage> messages,
         LlmRequestOptions options,
         CancellationToken cancellationToken);
+
+    /// <summary>Lists models available from this provider, when supported. Returns an empty list when the provider doesn't expose a discovery endpoint.</summary>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>The model identifiers, sorted alphabetically.</returns>
+    Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
 }

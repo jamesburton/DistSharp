@@ -14,14 +14,16 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection, for chaining.</returns>
     public static IServiceCollection AddDistSharpProviders(this IServiceCollection services)
     {
-        // Options — bound from configuration externally; provide defaults if not registered.
-        services.AddSingleton<OpenAIProviderOptions>(_ => new OpenAIProviderOptions());
+        // Options — defaults below match nominal use; environment-specific providers (Azure deployment
+        // name, Ollama/LM Studio model tags, generic compatible endpoints) have no default because
+        // the right value depends on the user's deployment.
+        services.AddSingleton<OpenAIProviderOptions>(_ => new OpenAIProviderOptions { DefaultModel = "gpt-4.1-mini" });
         services.AddSingleton<AzureOpenAIProviderOptions>(_ => new AzureOpenAIProviderOptions());
         services.AddSingleton<OpenAICompatibleEndpointOptions>(_ => new OpenAICompatibleEndpointOptions());
         services.AddSingleton<OllamaProviderOptions>(_ => new OllamaProviderOptions());
         services.AddSingleton<LmStudioProviderOptions>(_ => new LmStudioProviderOptions());
-        services.AddSingleton<AnthropicProviderOptions>(_ => new AnthropicProviderOptions());
-        services.AddSingleton<GeminiProviderOptions>(_ => new GeminiProviderOptions());
+        services.AddSingleton<AnthropicProviderOptions>(_ => new AnthropicProviderOptions { DefaultModel = "claude-haiku-4-5" });
+        services.AddSingleton<GeminiProviderOptions>(_ => new GeminiProviderOptions { DefaultModel = "gemini-2.5-flash" });
 
         // HttpClient per provider (each gets a typed client via AddHttpClient).
         services.AddHttpClient<OpenAIProvider>();

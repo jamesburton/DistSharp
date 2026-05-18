@@ -6,4 +6,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DistSharp.Providers.Tests" />
+  </ItemGroup>
 </Project>

@@ -10,7 +10,8 @@ Inspired by [distilabel](https://github.com/argilla-io/distilabel) and built for
 
 ```bash
 dnx DistSharp inspect ./MyApp.sln
-dnx DistSharp generate ./MyApp.sln --max-rows 5000 --provider openai --model gpt-4.1-mini
+dnx DistSharp models --provider openai            # list available models
+dnx DistSharp generate ./MyApp.sln --max-rows 5000 --provider openai
 dnx DistSharp pipeline run ./distsharp.yaml
 dnx DistSharp export ./distsharp-out --format alpaca --hf-repo myorg/dataset
 ```
@@ -144,7 +145,7 @@ dnx DistSharp generate <solution> [options]
 | `--dataset-type <type>` | `mixed` | `explanation` / `completion` / `bug-fix` / `unit-test` / `docstring` / `refactor` / `architecture-qa` / `mixed` |
 | `--format <fmt>` | `jsonl` | `jsonl` / `parquet` / `csv` |
 | `--provider <name>` | `openai` | See [LLM providers](#llm-providers) |
-| `--model <name>` | provider default | e.g. `gpt-4.1-mini`, `claude-sonnet-4-6`, `gemini-2.5-flash`, `qwen2.5-coder:32b` |
+| `--model <name>` | provider default (see below) | e.g. `gpt-4.1-mini`, `claude-sonnet-4-6`, `gemini-2.5-flash`, `qwen2.5-coder:32b`. Run `distsharp models --provider <name>` if unsure. |
 | `--include-tests` | `false` | Include test projects in analysis |
 | `--include-generated` | `false` | Include `*.g.cs` and similar |
 | `--min-complexity <n>` | `3` | Skip methods below this cyclomatic complexity |
@@ -152,6 +153,21 @@ dnx DistSharp generate <solution> [options]
 | `--workers <n>` | `4` | Parallel LLM workers |
 | `--seed <n>` | — | Deterministic sampling |
 | `--dry-run` | `false` | Analyse and sample only; skip LLM calls. The sampled symbols are written to disk so you can preview coverage before spending tokens. |
+
+### `models`
+
+Lists model IDs available from a provider's discovery endpoint. Useful when you don't remember the exact model name (the LLM providers change models often).
+
+```bash
+dnx DistSharp models --provider openai
+dnx DistSharp models --provider anthropic --filter haiku
+dnx DistSharp models --provider gemini
+dnx DistSharp models --provider ollama
+```
+
+`--filter <text>` is a case-insensitive substring filter on the model ID.
+
+Supported per provider: `openai`, `anthropic`, `gemini`, `azure-openai`, `ollama`, `lmstudio`, `openai-compatible`. Each hits its native models endpoint (`/v1/models`, `/v1beta/models`, etc.) using the same auth as completion calls.
 
 ### `init`
 
@@ -224,7 +240,23 @@ Set with `--provider` / `--model` (or in the YAML config).
 | LM Studio (local) | `lmstudio` | `LMSTUDIO_BASE_URL` (default `http://localhost:1234`) |
 | Any OpenAI-compatible endpoint | `openai-compatible` | `OPENAI_COMPATIBLE_BASE_URL` + `OPENAI_COMPATIBLE_API_KEY` |
 
+**Default models when `--model` is omitted:**
+
+| Provider | Default model |
+|---|---|
+| `openai` | `gpt-4.1-mini` |
+| `anthropic` | `claude-haiku-4-5` |
+| `gemini` | `gemini-2.5-flash` |
+| `azure-openai`, `ollama`, `lmstudio`, `openai-compatible` | no default — pass `--model` (deployment name on Azure, tag on Ollama, etc.) |
+
 All providers share a single retry helper that handles HTTP 408/429/500/502/503/504 with exponential backoff, honouring `Retry-After` when present. Authentication, request shape, and response parsing live in provider-specific classes under `src/DistSharp.Providers/`.
+
+When the API returns a model-not-found error (HTTP 404 with a known signal), DistSharp surfaces the provider's own message and appends a hint:
+
+```
+HTTP 404 from openai: The model `gpt5.4` does not exist or you do not have access to it.
+  — run 'distsharp models --provider openai' to list available models.
+```
 
 ---
 

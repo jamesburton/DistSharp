@@ -67,9 +67,13 @@ public sealed class AnthropicProvider : ILlmProvider
 
         if (!response.IsSuccessStatusCode)
         {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            var hint = ProviderErrorParser.IsModelNotFound((int)response.StatusCode, raw)
+                ? " — run 'distsharp models --provider anthropic' to list available models."
+                : string.Empty;
             throw new LlmProviderException(
                 this.ProviderName,
-                $"HTTP {(int)response.StatusCode} from Anthropic: {response.ReasonPhrase}",
+                $"HTTP {(int)response.StatusCode} from Anthropic: {apiMessage}{hint}",
                 (int)response.StatusCode,
                 raw);
         }
@@ -82,6 +86,53 @@ public sealed class AnthropicProvider : ILlmProvider
         }
 
         return text;
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = this.options.BaseUrl?.TrimEnd('/') ?? throw new InvalidOperationException("Anthropic: BaseUrl is not configured.");
+        var url = baseUrl + "/v1/models";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        var key = this.options.ApiKey ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
+        if (!string.IsNullOrEmpty(key))
+        {
+            request.Headers.Add("x-api-key", key);
+        }
+
+        request.Headers.Add("anthropic-version", AnthropicVersionHeader);
+
+        using var response = await this.http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var apiMessage = ProviderErrorParser.ExtractMessage(raw) ?? response.ReasonPhrase ?? "(no message)";
+            throw new LlmProviderException(
+                this.ProviderName,
+                $"HTTP {(int)response.StatusCode} listing models from Anthropic: {apiMessage}",
+                (int)response.StatusCode,
+                raw);
+        }
+
+        var json = JsonNode.Parse(raw);
+        if (json?["data"] is not JsonArray data)
+        {
+            return Array.Empty<string>();
+        }
+
+        var result = new List<string>(data.Count);
+        foreach (var item in data)
+        {
+            var id = item?["id"]?.GetValue<string>();
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                result.Add(id);
+            }
+        }
+
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
     }
 
     private JsonObject BuildRequestBody(IReadOnlyList<ChatMessage> messages, LlmRequestOptions options)

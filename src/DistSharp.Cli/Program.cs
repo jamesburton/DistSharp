@@ -26,7 +26,33 @@ public static class Program
         root.AddCommand(BuildInitCommand(services));
         root.AddCommand(BuildPipelineCommand(services));
         root.AddCommand(BuildExportCommand(services));
+        root.AddCommand(BuildModelsCommand(services));
         return root;
+    }
+
+    private static Command BuildModelsCommand(IServiceProvider services)
+    {
+        var provider = new Option<string>("--provider", () => "openai", "LLM provider to query (openai, anthropic, gemini, ollama, lmstudio, azure-openai, openai-compatible)");
+        var filter = new Option<string?>("--filter", () => null, "Case-insensitive substring to filter the model list");
+
+        var cmd = new Command("models", "List models exposed by an LLM provider's /models endpoint")
+        {
+            provider, filter,
+        };
+
+        cmd.SetHandler(async (context) =>
+        {
+            var options = new ModelsCommandOptions
+            {
+                Provider = context.ParseResult.GetValueForOption(provider)!,
+                Filter = context.ParseResult.GetValueForOption(filter),
+            };
+
+            var handler = services.GetRequiredService<ModelsCommandHandler>();
+            context.ExitCode = await handler.InvokeAsync(options, context.GetCancellationToken());
+        });
+
+        return cmd;
     }
 
     private static Command BuildGenerateCommand(IServiceProvider services)
