@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace DistSharp.Core.Sync;
 
 /// <summary>Helpers for reading git metadata from a working tree.</summary>
-internal static class GitHelper
+public static class GitHelper
 {
     /// <summary>
     /// Attempts to resolve the current git HEAD SHA for the repository containing <paramref name="path"/>.

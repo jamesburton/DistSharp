@@ -53,6 +53,8 @@ public static class HostBuilder
         builder.Services.AddTransient<PipelineRunCommandHandler>();
         builder.Services.AddTransient<ExportCommandHandler>();
         builder.Services.AddTransient<ModelsCommandHandler>();
+        builder.Services.AddTransient<DatasetSyncCommandHandler>();
+        builder.Services.AddTransient<DatasetMigrateCommandHandler>();
 
         return builder.Build();
     }

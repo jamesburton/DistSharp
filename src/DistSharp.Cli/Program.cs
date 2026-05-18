@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using DistSharp.Cli.Commands;
+using DistSharp.Core.Sync;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DistSharp.Cli;
@@ -27,6 +28,7 @@ public static class Program
         root.AddCommand(BuildPipelineCommand(services));
         root.AddCommand(BuildExportCommand(services));
         root.AddCommand(BuildModelsCommand(services));
+        root.AddCommand(BuildDatasetCommand(services));
         return root;
     }
 
@@ -234,6 +236,81 @@ public static class Program
             };
 
             var handler = services.GetRequiredService<ExportCommandHandler>();
+            context.ExitCode = await handler.InvokeAsync(options, context.GetCancellationToken());
+        });
+
+        return cmd;
+    }
+
+    private static Command BuildDatasetCommand(IServiceProvider services)
+    {
+        var datasetCmd = new Command("dataset", "Dataset lifecycle operations (sync, migrate)");
+        datasetCmd.AddCommand(BuildDatasetSyncCommand(services));
+        datasetCmd.AddCommand(BuildDatasetMigrateCommand(services));
+        return datasetCmd;
+    }
+
+    private static Command BuildDatasetSyncCommand(IServiceProvider services)
+    {
+        var datasetDir = new Argument<string>("dataset-dir", "Path to the dataset directory");
+        var solution = new Option<string>("--solution", "Path to .sln, .csproj, or directory") { IsRequired = true };
+        var datasetType = new Option<string>("--dataset-type", () => "explanation", "Dataset type (explanation, unit-test, etc.)");
+        var provider = new Option<string>("--provider", () => "openai", "LLM provider for regeneration");
+        var orphanPolicy = new Option<OrphanPolicy>("--orphan-policy", () => OrphanPolicy.Drop, "What to do with rows whose symbols no longer exist");
+        var dryRun = new Option<bool>("--dry-run", () => false, "Show plan without making LLM calls or writing files");
+
+        var cmd = new Command("sync", "Regenerate only changed rows, applying orphan policy")
+        {
+            datasetDir,
+            solution,
+            datasetType,
+            provider,
+            orphanPolicy,
+            dryRun,
+        };
+
+        cmd.SetHandler(async (context) =>
+        {
+            var options = new DatasetSyncCommandOptions
+            {
+                DatasetDir = context.ParseResult.GetValueForArgument(datasetDir),
+                Solution = context.ParseResult.GetValueForOption(solution)!,
+                DatasetType = context.ParseResult.GetValueForOption(datasetType)!,
+                Provider = context.ParseResult.GetValueForOption(provider)!,
+                OrphanPolicy = context.ParseResult.GetValueForOption(orphanPolicy),
+                DryRun = context.ParseResult.GetValueForOption(dryRun),
+            };
+
+            var handler = services.GetRequiredService<DatasetSyncCommandHandler>();
+            context.ExitCode = await handler.InvokeAsync(options, context.GetCancellationToken());
+        });
+
+        return cmd;
+    }
+
+    private static Command BuildDatasetMigrateCommand(IServiceProvider services)
+    {
+        var datasetDir = new Argument<string>("dataset-dir", "Path to the legacy dataset directory (no manifest yet)");
+        var solution = new Option<string>("--solution", "Path to .sln, .csproj, or directory") { IsRequired = true };
+        var datasetType = new Option<string>("--dataset-type", () => "explanation", "Dataset type the legacy dataset was generated with");
+
+        var cmd = new Command("migrate", "Seed _distsharp/manifest.json for an existing dataset directory")
+        {
+            datasetDir,
+            solution,
+            datasetType,
+        };
+
+        cmd.SetHandler(async (context) =>
+        {
+            var options = new DatasetMigrateCommandOptions
+            {
+                DatasetDir = context.ParseResult.GetValueForArgument(datasetDir),
+                Solution = context.ParseResult.GetValueForOption(solution)!,
+                DatasetType = context.ParseResult.GetValueForOption(datasetType)!,
+            };
+
+            var handler = services.GetRequiredService<DatasetMigrateCommandHandler>();
             context.ExitCode = await handler.InvokeAsync(options, context.GetCancellationToken());
         });
 
